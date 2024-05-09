@@ -552,6 +552,10 @@ async function webhook(params) {
         return;
     }
 
+    if (1 === 1) {
+        log(`Exiting early for Azure testing; would have run ${commandsToRun.map(v => v.name).join(", ")}`)
+        return;
+    }
 
     const start = Date.now();
     const created = `>=${new Date(start).toISOString()}`;
