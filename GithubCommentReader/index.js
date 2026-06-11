@@ -660,7 +660,7 @@ async function webhook(params) {
         return true;
     })
     if (hasTestIt) {
-        lines = [...lines, ...testItCommandSuffixes];
+        lines = [...lines, ...testItCommandSuffixes.map((suffix) => `${botCalls[0]} ${suffix}`)];
     }
     lines = [...new Set(lines)];
 
