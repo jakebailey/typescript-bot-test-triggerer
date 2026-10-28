@@ -1,3 +1,6 @@
+import assert from "node:assert/strict";
+import type { Octokit } from "octokit";
+
 export interface PrSnapshot {
     headSha: string;
     baseSha: string;
@@ -20,17 +23,35 @@ export function createPrSnapshot(
     };
 }
 
-export function isPrQuietPeriodActive(
+export async function isPrQuietPeriodActive(
+    api: Octokit["rest"],
     commentCreatedAt: string,
-    mergeCreatedAt: string,
+    head: {
+        repo: { owner: { login: string; }; name: string; } | null;
+        ref: string;
+    },
     prAuthorIsTeamMember: boolean,
     quietPeriodMs: number,
     prIsFromSameRepository = false,
-): boolean {
+): Promise<boolean> {
     if (prIsFromSameRepository || prAuthorIsTeamMember) {
         return false;
     }
 
-    const quietForMs = new Date(commentCreatedAt).getTime() - new Date(mergeCreatedAt).getTime();
+    assert(head.repo, "Cannot check head pushes because the PR's head repository is unavailable");
+    const { data: activities } = await api.repos.listActivities({
+        owner: head.repo.owner.login,
+        repo: head.repo.name,
+        ref: `refs/heads/${head.ref}`,
+        direction: "desc",
+        time_period: "day",
+        per_page: 1,
+    });
+    const latestActivity = activities[0];
+    if (!latestActivity) {
+        return false;
+    }
+
+    const quietForMs = new Date(commentCreatedAt).getTime() - new Date(latestActivity.timestamp).getTime();
     return quietForMs < quietPeriodMs;
 }

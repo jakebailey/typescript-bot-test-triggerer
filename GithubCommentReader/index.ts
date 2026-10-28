@@ -800,20 +800,17 @@ async function webhook(params: WebhookParams) {
                 return;
             }
 
-            const mergeCreatedAt = mergeCommit.commit.committer?.date;
-            if (!mergeCreatedAt) {
-                await reportPrChanged();
-                return;
-            }
             const prIsFromSameRepository = pr.head.repo?.id === pr.base.repo.id;
             const prIsTeamAuthoredFork = !prIsFromSameRepository
                 && (pr.user.login === params.commentUser || await isTypeScriptTeamMember(cli, pr.user.login));
-            if (isPrQuietPeriodActive(params.commentCreatedAt, mergeCreatedAt, prIsTeamAuthoredFork, prQuietPeriodMs, prIsFromSameRepository)) {
+            // The installation token cannot access contributors' fork repositories.
+            const publicCli = new Octokit().rest;
+            if (await isPrQuietPeriodActive(publicCli, params.commentCreatedAt, pr.head, prIsTeamAuthoredFork, prQuietPeriodMs, prIsFromSameRepository)) {
                 await cli.issues.createComment({
                     owner: "microsoft",
                     repo: params.repo,
                     issue_number: params.issueNumber,
-                    body: `Hey @${params.commentUser}, this PR was updated less than two minutes before this command. Please wait until it has been unchanged for two minutes and try again.`,
+                    body: `Hey @${params.commentUser}, this PR's head branch changed less than two minutes before this command, or after it was posted. Please wait until the branch has been unchanged for two minutes and try again.`,
                 });
                 return;
             }
